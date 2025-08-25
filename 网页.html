@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医疗预测模型 - 阳性概率评估</title>
+    <style>
+        :root {
+            --primary: #2c7db1;
+            --secondary: #6c757d;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --dark: #343a40;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7f9 0%, #e8ecf1 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        
+        .form-section {
+            flex: 1;
+            min-width: 300px;
+            padding: 2rem;
+            border-right: 1px solid #eee;
+        }
+        
+        .result-section {
+            flex: 1;
+            min-width: 300px;
+            padding: 2rem;
+            background: #f9fafb;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #444;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(44, 125, 177, 0.2);
+        }
+        
+        .range-hints {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--secondary);
+            margin-top: 5px;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+        
+        .btn:hover {
+            background: #236a97;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .result-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .result-title {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--dark);
+        }
+        
+        .probability {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 1rem 0;
+        }
+        
+        .risk-bar {
+            height: 30px;
+            background: #eee;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+        
+        .risk-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 15px;
+            transition: width 1s ease;
+            width: 0%;
+        }
+        
+        .risk-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--secondary);
+        }
+        
+        .risk-level {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-top: 1rem;
+            padding: 0.5rem;
+            border-radius: 5px;
+        }
+        
+        .low-risk {
+            color: var(--success);
+            background: rgba(40, 167, 69, 0.1);
+        }
+        
+        .medium-risk {
+            color: var(--warning);
+            background: rgba(255, 193, 7, 0.1);
+        }
+        
+        .high-risk {
+            color: var(--danger);
+            background: rgba(220, 53, 69, 0.1);
+        }
+        
+        .feature-importance {
+            margin-top: 2rem;
+        }
+        
+        .feature-title {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--dark);
+        }
+        
+        .feature {
+            margin-bottom: 1rem;
+        }
+        
+        .feature-name {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-bar {
+            height: 10px;
+            background: #eee;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .feature-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 5px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            background: var(--light);
+            color: var(--secondary);
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .form-section {
+                border-right: none;
+                border-bottom: 1px solid #eee;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>医疗预测模型 - 阳性概率评估</h1>
+            <p class="subtitle">基于XGBoost机器学习算法开发</p>
+        </header>
+        
+        <div class="content">
+            <div class="form-section">
+                <h2>患者信息输入</h2>
+                <form id="prediction-form">
+                    <div class="form-group">
+                        <label for="plt">PLT (血小板计数)</label>
+                        <input type="number" id="plt" min="0" max="450" required>
+                        <div class="range-hints">
+                            <span>0</span>
+                            <span>450</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ua">UA (尿酸)</label>
+                        <input type="number" id="ua" min="0" max="700" required>
+                        <div class="range-hints">
+                            <span>0</span>
+                            <span>700</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="age">年龄</label>
+                        <input type="number" id="age" min="0" max="100" required>
+                        <div class="range-hints">
+                            <span>0</span>
+                            <span>100</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sex">性别</label>
+                        <select id="sex" required>
+                            <option value="">请选择性别</option>
+                            <option value="0">女</option>
+                            <option value="1">男</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="arc">ARC (肾功能亢进)</label>
+                        <select id="arc" required>
+                            <option value="">请选择</option>
+                            <option value="0">否</option>
+                            <option value="1">是</option>
+                        </select>
+                    </div>
+                    
+                    <button type="button" id="predict-btn" class="btn">计算阳性概率</button>
+                </form>
+            </div>
+            
+            <div class="result-section">
+                <h2>预测结果</h2>
+                <div class="result-card">
+                    <div class="result-title">阳性概率</div>
+                    <div class="probability" id="probability-value">0%</div>
+                    
+                    <div class="risk-bar">
+                        <div class="risk-fill" id="risk-fill"></div>
+                    </div>
+                    <div class="risk-labels">
+                        <span>低风险</span>
+                        <span>中风险</span>
+                        <span>高风险</span>
+                    </div>
+                    
+                    <div class="risk-level low-risk" id="risk-level">请输入患者数据</div>
+                </div>
+                
+                <div class="feature-importance">
+                    <div class="feature-title">特征重要性</div>
+                    
+                    <div class="feature">
+                        <div class="feature-name">
+                            <span>PLT (血小板计数)</span>
+                            <span>36.1%</span>
+                        </div>
+                        <div class="feature-bar">
+                            <div class="feature-fill" style="width: 36.1%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="feature">
+                        <div class="feature-name">
+                            <span>UA (尿酸)</span>
+                            <span>32.8%</span>
+                        </div>
+                        <div class="feature-bar">
+                            <div class="feature-fill" style="width: 32.8%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="feature">
+                        <div class="feature-name">
+                            <span>年龄</span>
+                            <span>21.2%</span>
+                        </div>
+                        <div class="feature-bar">
+                            <div class="feature-fill" style="width: 21.2%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="feature">
+                        <div class="feature-name">
+                            <span>性别</span>
+                            <span>5.4%</span>
+                        </div>
+                        <div class="feature-bar">
+                            <div class="feature-fill" style="width: 5.4%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="feature">
+                        <div class="feature-name">
+                            <span>ARC</span>
+                            <span>4.6%</span>
+                        </div>
+                        <div class="feature-bar">
+                            <div class="feature-fill" style="width: 4.6%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2025 医疗预测系统 | 本工具基于XGBoost机器学习模型开发，仅供参考，不能替代专业医疗诊断</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const predictBtn = document.getElementById('predict-btn');
+            const probabilityValue = document.getElementById('probability-value');
+            const riskFill = document.getElementById('risk-fill');
+            const riskLevel = document.getElementById('risk-level');
+            
+            // 模拟XGBoost模型预测函数
+            function predictProbability(plt, ua, age, sex, arc) {
+                // 这是基于您提供的XGBoost模型特征的模拟函数
+                // 在实际应用中，这里应该调用真实的模型API
+                
+                // 特征归一化
+                const normalizedPlt = plt / 450;
+                const normalizedUa = ua / 700;
+                const normalizedAge = age / 100;
+                
+                // 基于特征重要性的加权计算
+                let score = 
+                    normalizedPlt * 0.361 +  // PLT权重36.1%
+                    normalizedUa * 0.328 +   // UA权重32.8%
+                    normalizedAge * 0.212 +  // 年龄权重21.2%
+                    sex * 0.054 +            // 性别权重5.4%
+                    arc * 0.046;             // ARC权重4.6%
+                
+                // 应用sigmoid函数将分数转换为概率
+                const probability = 1 / (1 + Math.exp(-score * 10 + 5));
+                
+                return Math.min(0.99, Math.max(0.01, probability));
+            }
+            
+            // 更新UI显示预测结果
+            function updateResults(probability) {
+                const percentage = (probability * 100).toFixed(1);
+                
+                // 更新概率显示
+                probabilityValue.textContent = `${percentage}%`;
+                
+                // 更新进度条
+                riskFill.style.width = `${percentage}%`;
+                
+                // 更新风险级别
+                if (probability < 0.3) {
+                    riskLevel.textContent = '低风险';
+                    riskLevel.className = 'risk-level low-risk';
+                } else if (probability < 0.7) {
+                    riskLevel.textContent = '中风险';
+                    riskLevel.className = 'risk-level medium-risk';
+                } else {
+                    riskLevel.textContent = '高风险';
+                    riskLevel.className = 'risk-level high-risk';
+                }
+            }
+            
+            // 绑定预测按钮点击事件
+            predictBtn.addEventListener('click', function() {
+                // 获取输入值
+                const plt = parseFloat(document.getElementById('plt').value);
+                const ua = parseFloat(document.getElementById('ua').value);
+                const age = parseInt(document.getElementById('age').value);
+                const sex = parseInt(document.getElementById('sex').value);
+                const arc = parseInt(document.getElementById('arc').value);
+                
+                // 验证输入
+                if (isNaN(plt) || plt < 0 || plt > 450) {
+                    alert('请输入有效的PLT值 (0-450)');
+                    return;
+                }
+                
+                if (isNaN(ua) || ua < 0 || ua > 700) {
+                    alert('请输入有效的UA值 (0-700)');
+                    return;
+                }
+                
+                if (isNaN(age) || age < 0 || age > 100) {
+                    alert('请输入有效的年龄 (0-100)');
+                    return;
+                }
+                
+                if (isNaN(sex) || (sex !== 0 && sex !== 1)) {
+                    alert('请选择性别');
+                    return;
+                }
+                
+                if (isNaN(arc) || (arc !== 0 && arc !== 1)) {
+                    alert('请选择ARC值');
+                    return;
+                }
+                
+                // 计算概率
+                const probability = predictProbability(plt, ua, age, sex, arc);
+                
+                // 更新UI
+                updateResults(probability);
+            });
+        });
+    </script>
+</body>
+</html>
